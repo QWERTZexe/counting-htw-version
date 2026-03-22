@@ -369,8 +369,7 @@ def evaluate_expression(text: str):
                 st.append(funcs[t](x))
     if len(st) != 1:
         raise ValueError("Invalid expression")
-    str(st[0])
-    return st[0]
+    return round(st[0])
 
 
 if __name__ == "__main__":
