@@ -33,6 +33,13 @@ def main():
         0 if check("eval factorial", evaluate_expression("factorial(4)"), 24) else 1
     )
 
+    # CJK numbers (十=10, 二十五=25, 一百=100, etc.)
+    failures += 0 if check("CJK 10", parse_message("\u5341"), 10) else 1
+    failures += 0 if check("CJK 25", parse_message("\u4e8c\u5341\u4e94"), 25) else 1
+    failures += 0 if check("CJK 100", parse_message("\u4e00\u767e"), 100) else 1
+    failures += 0 if check("CJK 1200", parse_message("\u4e00\u5343\u4e8c\u767e"), 1200) else 1
+    failures += 0 if check("CJK expr 10+5", parse_message("\u5341+\u4e94"), 15) else 1
+
     if failures:
         print(f"\n{failures} test(s) failed")
         sys.exit(1)
