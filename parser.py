@@ -1,5 +1,101 @@
 from typing import Optional
 
+# CJK number characters: digits and place-value multipliers
+CJK_DIGITS = {
+    "〇": 0, "零": 0,
+    "一": 1, "二": 2, "两": 2, "兩": 2, "三": 3, "四": 4, "五": 5,
+    "六": 6, "七": 7, "八": 8, "九": 9,
+}
+CJK_MULTIPLIERS = (
+    ("兆", 1_000_000_000_000),
+    ("億", 100_000_000), ("亿", 100_000_000),
+    ("万", 10_000), ("萬", 10_000),
+    ("千", 1_000),
+    ("百", 100),
+    ("十", 10),
+)
+
+
+def parse_cjk_number(s: str) -> Optional[int]:
+    """
+    Parse CJK number symbols (e.g. 十=10, 二十五=25, 一百=100).
+    Returns the integer value or None if the string is not a valid CJK number.
+    """
+    s = s.strip()
+    if not s:
+        return None
+    # Quick check: at least one char must be a known CJK digit or multiplier
+    valid_chars = set(CJK_DIGITS) | {m for m, _ in CJK_MULTIPLIERS}
+    if not any(c in valid_chars for c in s):
+        return None
+    try:
+        return _parse_cjk_inner(s)
+    except (ValueError, KeyError):
+        return None
+
+
+def _parse_cjk_inner(s: str) -> int:
+    """
+    Simplified CJK parser. Numbers like:
+    - 十 = 10 (standalone)
+    - 十五 = 15 (10 + 5)
+    - 二十 = 20 (2 * 10)
+    - 二十五 = 25 (2*10 + 5)
+    - 百 = 100
+    - 一百二十五 = 125
+    - 一千二百 = 1200
+    - 一万 = 10000
+    """
+    result = 0
+    current = 0
+    i = 0
+    n = len(s)
+
+    while i < n:
+        c = s[i]
+        if c in CJK_DIGITS:
+            d = CJK_DIGITS[c]
+            i += 1
+            if i < n:
+                next_c = s[i]
+                found = False
+                for mul_char, mul_val in CJK_MULTIPLIERS:
+                    if next_c == mul_char:
+                        if mul_val >= 10_000:
+                            result += (current + d) * mul_val
+                            current = 0
+                        else:
+                            current += d * mul_val
+                        i += 1
+                        found = True
+                        break
+                if not found:
+                    current += d
+            else:
+                current += d
+        else:
+            found = False
+            for mul_char, mul_val in CJK_MULTIPLIERS:
+                if c == mul_char:
+                    if mul_val >= 10_000:
+                        result += (current if current else 1) * mul_val
+                        current = 0
+                    else:
+                        # 十, 百, 千 as standalone or after digits
+                        # 十 alone = 10, 二十 = 2*10
+                        if current == 0:
+                            current = mul_val
+                        else:
+                            # 二十: current=2, 十 -> 2*10=20
+                            current = current * mul_val
+                    i += 1
+                    found = True
+                    break
+            if not found:
+                raise ValueError(f"Invalid CJK character: {c}")
+
+    return result + current
+
 
 def parse_message(content: str) -> Optional[int]:
     """
@@ -20,6 +116,10 @@ def parse_message(content: str) -> Optional[int]:
         return int(s, 0)
     except Exception:
         pass
+    # Try CJK number (e.g. 十, 二十五, 一百)
+    cjk_val = parse_cjk_number(s)
+    if cjk_val is not None:
+        return cjk_val
     # Fallback to expression evaluation
     try:
         return evaluate_expression(s)
@@ -80,6 +180,8 @@ def evaluate_expression(text: str):
                 tokens.append(const_val)
             elif set(ident) <= set("IVXLCDMivxlcdm"):
                 tokens.append(parse_roman(ident))
+            elif (cjk_val := parse_cjk_number(ident)) is not None:
+                tokens.append(cjk_val)
             else:
                 tokens.append(ident)
             i = j
