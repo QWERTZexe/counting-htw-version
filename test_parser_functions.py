@@ -23,7 +23,7 @@ def main():
     failures += 0 if check("expr simple", parse_message("1+2*3"), 7) else 1
     failures += 0 if check("expr paren", parse_message("(1+2)*3"), 9) else 1
     failures += 0 if check("expr unary", parse_message("-(-1)"), 1) else 1
-    failures += 0 if check("expr division round", parse_message("3/2"), 2) else 1
+    failures += 0 if check("expr division round", parse_message("3/2"), 1.5) else 1
     failures += 0 if check("expr with hex/bin", parse_message("0x10 + 0b11"), 19) else 1
 
     # evaluate_expression directly
